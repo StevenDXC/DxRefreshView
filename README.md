@@ -6,7 +6,7 @@
 demo:
 ---
 
-![image]({{ site.baseurl }}/img/post/refresh_header.gif)
+![image](image/refresh_header.gif)
 
 Usage:
 ---
