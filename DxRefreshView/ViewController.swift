@@ -19,14 +19,14 @@ class ViewController: UIViewController {
         scrollView.frame = self.view.bounds;
         scrollView.addRefreshHeader(color: UIColor.blue) { 
             print("refreshing...");
-            DispatchQueue.main.asyncAfter(deadline:  DispatchTime.now() + 3.0, execute: {
-                self.scrollView.endRefreshing();
+            DispatchQueue.main.asyncAfter(deadline: DispatchTime.now() + 3.0, execute: {
+                self.scrollView.refreshHeader?.endRefreshing();
             })
 
         };
         scrollView.contentSize = CGSize(width:self.view.bounds.width,height:1000);
         self.view.addSubview(scrollView);
-        scrollView.beginRefreshing();
+        self.scrollView.refreshHeader?.beginRefreshing();
     }
     
     override func viewWillDisappear(_ animated: Bool) {

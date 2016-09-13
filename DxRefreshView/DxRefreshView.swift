@@ -17,6 +17,7 @@ class DxRefreshView: UIView {
     private var _color:UIColor = UIColor.darkGray;
     private var refreshLayer:DxRefreshLayer!;
     private var textLabel:UILabel!;
+    private let defaultHeaderHeight:CGFloat = 48;
     
     internal var color:UIColor{
         get{
@@ -42,16 +43,13 @@ class DxRefreshView: UIView {
     
     private func initSubViews(){
         
-        let left:CGFloat = (self.bounds.width-116.0)/2;
-        
         refreshLayer = DxRefreshLayer();
-        refreshLayer.frame = CGRect(origin:CGPoint(x:left,y:0),size: CGSize(width:24, height:48));
         refreshLayer.contentsScale = UIScreen.main.scale;
         refreshLayer.color = _color;
         self.layer.addSublayer(refreshLayer);
         
+        
         textLabel = UILabel();
-        textLabel.frame = CGRect(origin:CGPoint(x:left+24,y:0),size: CGSize(width:92, height:48))
         textLabel.textColor = _color;
         textLabel.font = UIFont.systemFont(ofSize: 13);
         textLabel.textAlignment = NSTextAlignment.center;
@@ -59,6 +57,13 @@ class DxRefreshView: UIView {
         self.addSubview(textLabel)
         
         setPullStateText();
+        
+        let text:NSString = NSString.init(string:textLabel.text!);
+        let textWidth:CGFloat = text.boundingRect(with: CGSize(width:0,height:defaultHeaderHeight), options: NSStringDrawingOptions.usesLineFragmentOrigin, attributes:[NSFontAttributeName: textLabel.font], context: nil).width;
+        let left:CGFloat = (self.bounds.width-textWidth-26)/2;
+        
+        refreshLayer.frame = CGRect(origin:CGPoint(x:left,y:0),size: CGSize(width:24, height:defaultHeaderHeight));
+        textLabel.frame = CGRect(origin:CGPoint(x:left+26,y:0),size: CGSize(width:textWidth, height:defaultHeaderHeight))
     }
     
     private func setPullStateText(){
@@ -126,15 +131,15 @@ class DxRefreshView: UIView {
         if(refreshLayer.state != LayerState.LOADING){
             return;
         }
-        UIView.animate(withDuration: 0.3 , animations: {
-            self.transform = CGAffineTransform(translationX: 0, y: -48);
+        
+        UIView.animate(withDuration:0.3 , animations: {
             self.textLabel.layer.opacity = 0.0;
+            self.transform = CGAffineTransform(translationX: 0, y: -48);
         }) { (finished:Bool) in
             self.refreshLayer.removeAllAnimations();
             self.refreshLayer.reset();
             self.setPullStateText();
-            let popTime:DispatchTime = DispatchTime.now() + 0.3;
-            DispatchQueue.main.asyncAfter(deadline: popTime, execute: {
+            DispatchQueue.main.asyncAfter(deadline: DispatchTime.now() + 0.3, execute: {
                 self.transform = CGAffineTransform(translationX: 0,  y:0);
                 self.frame = CGRect(origin:CGPoint(x:0,y:0),size:CGSize(width:UIScreen.main.bounds.width,height:0));
             })

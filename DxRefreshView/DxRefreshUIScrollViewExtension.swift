@@ -15,7 +15,7 @@ public extension UIScrollView {
         static var observer = "observer"
     }
     
-    private var refreshHeader: DxRefreshView? {
+    internal var refreshHeader: DxRefreshView? {
         get {
             return objc_getAssociatedObject(self, &dx_associatedKeys.refreshHeader) as? DxRefreshView;
         }
@@ -44,13 +44,13 @@ public extension UIScrollView {
         self.addObserver(refreshHeader, forKeyPath: "contentOffset", options: NSKeyValueObservingOptions.new, context: nil);
     }
     
-    public func beginRefreshing(){
-        self.refreshHeader?.beginRefreshing();
-    }
-    
-    public func endRefreshing(){
-        self.refreshHeader?.endRefreshing();
-    }
+//    public func beginRefreshing(){
+//        self.refreshHeader?.beginRefreshing();
+//    }
+//    
+//    public func endRefreshing(){
+//        self.refreshHeader?.endRefreshing();
+//    }
     
     public func removeScrollObserver(){
         self.removeObserver(self.refreshHeader!, forKeyPath:"contentOffset");
