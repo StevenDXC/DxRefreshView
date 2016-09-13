@@ -3,7 +3,8 @@
 
 模仿锤子手机的下拉刷新效果.基于swift 3.0编写
 
-demo:
+
+Demo:
 ---
 
 ![image](image/refresh_header.gif)
