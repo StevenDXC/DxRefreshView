@@ -9,44 +9,56 @@
 import UIKit
 
 enum LayerState : Int{
-    case PULL_TO_TRANSITION = 0, PULL_TO_ARC, RELEASED,LOADING
+    case PULL_TO_TRANSITION = 0, PULL_TO_ARC,PULL_TO_ROTATE,RELEASED,LOADING
 }
 
 class DxRefreshLayer: CALayer {
 
     public var state:LayerState!;       //current state
     public var color:UIColor!;
-    public var _progress:CGFloat!;      //pull down progress
     public let lineWidth:CGFloat = 1.3;
     public let arcRadius:CGFloat = 6.0;
-    public let arrowLenth:CGFloat = 2.0;
+    public let arrowLenth:CGFloat = 3.0;
 
     private let endAngle:CGFloat = 150.0;
-    private var lineLength:CGFloat!,angle:CGFloat!;
+    
+    private var height:CGFloat!;
+    private var _offsetY:CGFloat!;      //pull down offset
+    private var lineLength:CGFloat!;
+    private var angle:CGFloat!,rotateAngle:CGFloat = 0.0;
     private var centerX:CGFloat!,centerY:CGFloat!;
     private var left:CGFloat!,right:CGFloat!,top:CGFloat!;
     private var moveDistance:CGFloat!;                      //line transiton distance
     
-    internal var progress:CGFloat{
+    internal var offsetY:CGFloat{
         get {
-            return _progress;
+            return _offsetY;
         }
         set {
-            _progress = newValue;
-            if state == LayerState.PULL_TO_TRANSITION && _progress > 0.5 {
+            _offsetY = newValue;
+            let progress = _offsetY/height;
+            if state == LayerState.PULL_TO_TRANSITION && progress > 0.5 {
                 state = LayerState.PULL_TO_ARC;
             }
             
-            if state == LayerState.PULL_TO_ARC && _progress <= 0.5 {
+            if state == LayerState.PULL_TO_ARC && progress <= 0.5 {
                 state = LayerState.PULL_TO_TRANSITION;
             }
             
             if state == LayerState.PULL_TO_ARC {
-                angle = (_progress-0.5)*2*endAngle;
-                if angle >= 150 {
-                    state = LayerState.RELEASED;
+                angle = (progress-0.5)*2*endAngle;
+                if angle >= endAngle {
+                    state = LayerState.PULL_TO_ROTATE;
                 }
             }
+            
+            if state == LayerState.PULL_TO_ROTATE {
+                if(progress <= 1){
+                    return;
+                }
+                rotateAngle = (progress-1.0)*180;
+            }
+            
             setNeedsDisplay();
         }
     }
@@ -76,7 +88,7 @@ class DxRefreshLayer: CALayer {
             drawLineToArcWithContext(ctx: ctx);
         }
         
-        if(state == LayerState.RELEASED || state == LayerState.LOADING){
+        if(state == LayerState.PULL_TO_ROTATE || state == LayerState.RELEASED || state == LayerState.LOADING){
             drawReleaseStateWithContext(ctx: ctx);
         }
 
@@ -87,8 +99,8 @@ class DxRefreshLayer: CALayer {
     
     private func initData(){
         if(lineLength == nil){
-            let width:CGFloat  = self.bounds.width;
-            let height:CGFloat = self.bounds.height;
+            let width:CGFloat = self.bounds.width;
+            height = self.bounds.height;
     
             centerX = self.bounds.size.width/2;
             centerY = self.bounds.size.height/2;
@@ -119,9 +131,9 @@ class DxRefreshLayer: CALayer {
         
         initData();
         
-        let leftLineY:CGFloat = self.bounds.size.height+2.0-moveDistance*_progress*2;
-        let rightLineY:CGFloat = -lineLength-2+moveDistance*_progress*2;
-    
+        let leftLineY:CGFloat = self.bounds.size.height+2.0-moveDistance*_offsetY/height*2;
+        let rightLineY:CGFloat = -lineLength-2+moveDistance*_offsetY/height*2;
+        
         ctx.move(to: CGPoint(x:left,y:leftLineY));
         ctx.addLine(to: CGPoint(x:left,y:leftLineY+lineLength));
     
@@ -139,19 +151,14 @@ class DxRefreshLayer: CALayer {
     //draw line to arc
     private func drawLineToArcWithContext(ctx:CGContext){
         
-        let radian:CGFloat = CGFloat(CGFloat(M_PI))/180.0*(180+angle);
-        let rx:CGFloat = cos(radian)*arcRadius;
-        let ry:CGFloat = sin(radian)*arcRadius;
+        let radian = angleToRadian(angle: 180+angle);
+        let radian2 = angleToRadian(angle: angle);
+        
+        let lx:CGFloat = getRadianX(radian:radian) - arrowLenth*sin(angleToRadian(angle:angle+30));
+        let ty:CGFloat = getRadianY(radian:radian) + arrowLenth*cos(angleToRadian(angle:angle+30));
     
-        let lx:CGFloat = centerX + rx - arrowLenth*sin((angle+30)/180.0 * CGFloat(CGFloat(M_PI)));
-        let ty:CGFloat = centerY + ry + arrowLenth*cos((angle+30)/180.0 * CGFloat(CGFloat(M_PI)));
-    
-        let radian2:CGFloat = CGFloat(CGFloat(M_PI))/180.0*angle;
-        let rx2:CGFloat = cos(radian2)*arcRadius;
-        let ry2:CGFloat = sin(radian2)*arcRadius;
-    
-        let ra2x:CGFloat = centerX + rx2 + arrowLenth*cos((angle-60)/180.0 * CGFloat(CGFloat(M_PI)));
-        let ra2y:CGFloat = centerY + ry2 + arrowLenth*sin((angle-60)/180.0 * CGFloat(CGFloat(M_PI)));
+        let ra2x:CGFloat = getRadianX(radian:radian2) + arrowLenth*cos(angleToRadian(angle:angle-60));
+        let ra2y:CGFloat = getRadianY(radian:radian2) + arrowLenth*sin(angleToRadian(angle:angle-60));
     
         //left line
         let bottom:CGFloat = self.bounds.size.height-top+arcRadius;
@@ -164,55 +171,74 @@ class DxRefreshLayer: CALayer {
     
         //lef arrow
         ctx.move(to: CGPoint(x:lx,y:ty));
-        ctx.addLine(to: CGPoint(x:centerX + rx,y:centerY + ry));
+        ctx.addLine(to: CGPoint(x:getRadianX(radian:radian),y:getRadianY(radian:radian)));
     
         //right arrow
         ctx.move(to: CGPoint(x:ra2x,y:ra2y));
-        ctx.addLine(to: CGPoint(x:centerX + rx2,y:centerY+ry2));
+        ctx.addLine(to: CGPoint(x:getRadianX(radian:radian2),y:getRadianY(radian:radian2)));
     
         //bottom arc
         ctx.move(to: CGPoint(x:centerX+arcRadius,y:centerY));
-        ctx.addArc(center: CGPoint(x:centerX,y:centerY), radius: arcRadius, startAngle: 0, endAngle:angle/180.0*CGFloat(CGFloat(M_PI)), clockwise: false);
+        ctx.addArc(center: CGPoint(x:centerX,y:centerY), radius: arcRadius, startAngle: 0, endAngle:angleToRadian(angle:angle), clockwise: false);
         
         //top arc
         ctx.move(to: CGPoint(x:left,y:centerY));
-        ctx.addArc(center: CGPoint(x:centerX,y:centerY), radius: arcRadius, startAngle: CGFloat(CGFloat(M_PI)), endAngle:angle/180.0*CGFloat(CGFloat(M_PI))-CGFloat(CGFloat(M_PI)), clockwise: false);
+        ctx.addArc(center: CGPoint(x:centerX,y:centerY), radius: arcRadius, startAngle: CGFloat(M_PI), endAngle:angleToRadian(angle:angle)-CGFloat(M_PI), clockwise: false);
     }
     
     //draw tow arc by progress,and line‘s length pyramid down to 0;
     private func drawReleaseStateWithContext(ctx:CGContext)
     {
-        let radian:CGFloat = CGFloat(M_PI)/180.0*(180.0+endAngle);
-        let rx:CGFloat = cos(radian)*arcRadius;
-        let ry:CGFloat = sin(radian)*arcRadius;
-    
-        let radian2:CGFloat = CGFloat(M_PI)/180.0*endAngle;
-        let rx2:CGFloat = cos(radian2)*arcRadius;
-        let ry2:CGFloat = sin(radian2)*arcRadius;
-    
-        let ra2x:CGFloat = centerX + rx2 + arrowLenth*cos(0.5 * CGFloat(M_PI));
-        let ra2y:CGFloat = centerY + ry2 + arrowLenth*sin(0.5 * CGFloat(M_PI));
-    
-        ctx.move(to: CGPoint(x:centerX + rx - 3*sin(CGFloat(M_PI)),y:centerY + ry + arrowLenth*cos(CGFloat(M_PI))));
-        ctx.addLine(to: CGPoint(x:centerX + rx,y:centerY + ry));
+        let startRadian = CGFloat(M_PI)+angleToRadian(angle:rotateAngle);
+        let endRadian = endAngle/180.0*CGFloat(M_PI)-CGFloat(M_PI)+angleToRadian(angle:rotateAngle);
+        
+        let startRadian2 = angleToRadian(angle:rotateAngle);
+        let endRadian2 = endAngle/180.0*CGFloat(M_PI)+startRadian2;
+        
+        let rax = getRadianX(radian:endRadian) - arrowLenth*sin(angleToRadian(angle:endAngle+rotateAngle+30));
+        let ray = getRadianY(radian:endRadian) + arrowLenth*cos(angleToRadian(angle:endAngle+rotateAngle+30));
+        
+        let ra2x = getRadianX(radian:endRadian2) + arrowLenth*cos(angleToRadian(angle:endAngle+rotateAngle-60));
+        let ra2y = getRadianY(radian:endRadian2) + arrowLenth*sin(angleToRadian(angle:endAngle+rotateAngle-60));
+
+        ctx.move(to: CGPoint(x:rax,y:ray));
+        ctx.addLine(to: CGPoint(x:getRadianX(radian: endRadian),y:getRadianY(radian: endRadian)));
     
         ctx.move(to: CGPoint(x:ra2x,y:ra2y));
-        ctx.addLine(to: CGPoint(x:centerX + rx2,y:centerY+ry2));
+        ctx.addLine(to: CGPoint(x:getRadianX(radian: endRadian2),y:getRadianY(radian: endRadian2)));
     
-        ctx.move(to: CGPoint(x:left,y:centerY));
-        ctx.addArc(center: CGPoint(x:centerX,y:centerY), radius: arcRadius, startAngle: CGFloat(M_PI), endAngle: endAngle/180.0*CGFloat(M_PI)-CGFloat(M_PI), clockwise: false);
+        ctx.move(to: CGPoint(x:getRadianX(radian: startRadian),y:getRadianY(radian: startRadian)));
+        ctx.addArc(center: CGPoint(x:centerX,y:centerY), radius: arcRadius, startAngle: startRadian, endAngle: endRadian, clockwise: false);
     
-        ctx.move(to: CGPoint(x:centerX+arcRadius,y:centerY));
-        ctx.addArc(center: CGPoint(x:centerX,y:centerY), radius: arcRadius, startAngle: 0, endAngle: endAngle/180.0*CGFloat(M_PI), clockwise: false);
+        ctx.move(to: CGPoint(x:getRadianX(radian: startRadian2),y:getRadianY(radian: startRadian2)));
+        ctx.addArc(center: CGPoint(x:centerX,y:centerY), radius: arcRadius, startAngle: startRadian2, endAngle:endRadian2, clockwise: false);
+    }
+    
+    private func angleToRadian(angle:CGFloat) -> CGFloat
+    {
+         return angle / 180.0 * CGFloat(M_PI);
+    }
+    
+    private func getRadianX(radian:CGFloat) -> CGFloat
+    {
+         return centerX + cos(radian) * arcRadius;
+    }
+    
+    private func getRadianY(radian:CGFloat) -> CGFloat
+    {
+        return centerY + sin(radian) * arcRadius;
     }
     
     
     public func startLoaingAnimation(){
+        if(state == LayerState.PULL_TO_ROTATE){
+            state = LayerState.RELEASED;
+        }
         if(state != LayerState.RELEASED || state == LayerState.LOADING){
             return;
         }
-        playRotateAnimation();
         state = LayerState.LOADING;
+        playRotateAnimation();
     }
     
     public func beginRefreshing(){
@@ -223,10 +249,12 @@ class DxRefreshLayer: CALayer {
     }
     
     public func reset(){
-        _progress = 0;
+        _offsetY = 0;
         angle = 0;
+        rotateAngle = 0;
         state = LayerState.PULL_TO_TRANSITION;
         setNeedsDisplay();
     }
+    
     
 }

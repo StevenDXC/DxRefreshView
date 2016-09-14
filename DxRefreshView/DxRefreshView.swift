@@ -17,7 +17,8 @@ class DxRefreshView: UIView {
     private var _color:UIColor = UIColor.darkGray;
     private var refreshLayer:DxRefreshLayer!;
     private var textLabel:UILabel!;
-    private let defaultHeaderHeight:CGFloat = 48;
+    private let defaultHeaderHeight:CGFloat = 36.0;
+    private var originInsertTop:CGFloat = -1;
     
     internal var color:UIColor{
         get{
@@ -48,7 +49,6 @@ class DxRefreshView: UIView {
         refreshLayer.color = _color;
         self.layer.addSublayer(refreshLayer);
         
-        
         textLabel = UILabel();
         textLabel.textColor = _color;
         textLabel.font = UIFont.systemFont(ofSize: 13);
@@ -63,7 +63,7 @@ class DxRefreshView: UIView {
         let left:CGFloat = (self.bounds.width-textWidth-26)/2;
         
         refreshLayer.frame = CGRect(origin:CGPoint(x:left,y:0),size: CGSize(width:24, height:defaultHeaderHeight));
-        textLabel.frame = CGRect(origin:CGPoint(x:left+26,y:0),size: CGSize(width:textWidth, height:defaultHeaderHeight))
+        textLabel.frame = CGRect(origin:CGPoint(x:left+26,y:0),size: CGSize(width:textWidth, height:14))
     }
     
     private func setPullStateText(){
@@ -86,41 +86,58 @@ class DxRefreshView: UIView {
         }
     }
     
-    private func didScroll(scollView:UIScrollView){
-        if refreshLayer.state == LayerState.LOADING {
+    private func didScroll(scrollView:UIScrollView){
+        if refreshLayer.state == LayerState.LOADING || originInsertTop == -1 {
             return;
         }
         
-        if scollView.contentOffset.y < 0{
-            var progress:CGFloat = -scollView.contentOffset.y/48.0;
-            if self.frame.height < 48 {
-                self.frame = CGRect(origin:CGPoint(x:0,y:0),size: CGSize(width:UIScreen.main.bounds.width, height:-scollView.contentOffset.y));
+        if scrollView.contentOffset.y >= -(originInsertTop + defaultHeaderHeight) && refreshLayer.state == LayerState.PULL_TO_ROTATE {
+            setScrollViewContentInsetForLoading(scrollView:scrollView);
+            startLoadingAniamtion();
+            return;
+        }
+        
+        if scrollView.contentOffset.y < -scrollView.contentInset.top {
+            refreshLayer.offsetY = -scrollView.contentOffset.y - originInsertTop;
+            var progress:CGFloat = (-scrollView.contentOffset.y - scrollView.contentInset.top)/defaultHeaderHeight;
+            if self.frame.height < defaultHeaderHeight {
+                let height:CGFloat = -scrollView.contentOffset.y - originInsertTop;
+                self.frame = CGRect(origin:CGPoint(x:0,y:-height),size: CGSize(width:UIScreen.main.bounds.width, height:-scrollView.contentOffset.y-scrollView.contentInset.top));
                 textLabel.layer.opacity = Float(progress);
             }
             
             if progress > 1 {
                 progress = 1;
                 textLabel.layer.opacity = 1;
-                self.frame = CGRect(origin:CGPoint(x:0,y:0),size: CGSize(width:UIScreen.main.bounds.width, height:48));
+                self.frame = CGRect(origin:CGPoint(x:0,y:0),size: CGSize(width:UIScreen.main.bounds.width, height:defaultHeaderHeight));
                 setReleaseStateText();
             }
-            refreshLayer.progress = progress;
+            refreshLayer.offsetY = -scrollView.contentOffset.y-scrollView.contentInset.top;
+            return;
         }
         
     
-        if scollView.contentOffset.y == 0 {
+        if scrollView.contentOffset.y == -scrollView.contentInset.top {
             startLoadingAniamtion();
         }
+    }
+    
+    private func setScrollViewContentInsetForLoading(scrollView:UIScrollView) {
+        var currentInsets:UIEdgeInsets = scrollView.contentInset;
+        currentInsets.top = originInsertTop + defaultHeaderHeight;
+        UIView.animate(withDuration: 0.3, delay: 0, options:[.allowUserInteraction,.beginFromCurrentState], animations:{
+                scrollView.contentInset = currentInsets;
+            }, completion: nil);
     }
 
     
     public func beginRefreshing() {
         refreshLayer.beginRefreshing();
         setRefreshingStateText();
-        UIView.animate(withDuration: 0.3) { 
-            self.frame = CGRect(origin:CGPoint(x:0,y:0),size:CGSize(width:UIScreen.main.bounds.width,height:48));
-            self.textLabel.layer.opacity = 1.0;
-        }
+        setScrollViewContentInsetForLoading(scrollView: (self.superview as? UIScrollView)!);
+        self.frame = CGRect(origin:CGPoint(x:0,y:-defaultHeaderHeight), size:CGSize(width:self.frame.size.width, height:defaultHeaderHeight));
+        textLabel.frame = CGRect(origin:CGPoint(x:textLabel.frame.origin.x,y:(defaultHeaderHeight-14)/2), size:CGSize(width:textLabel.frame.size.width, height:14));
+        self.textLabel.layer.opacity = 1.0;
         if actionHandler != nil {
             actionHandler!();
         }
@@ -131,24 +148,30 @@ class DxRefreshView: UIView {
         if(refreshLayer.state != LayerState.LOADING){
             return;
         }
-        
+        let scrollView:UIScrollView = self.superview as! UIScrollView;
         UIView.animate(withDuration:0.3 , animations: {
+            self.frame = CGRect(origin:CGPoint(x:0,y:-self.defaultHeaderHeight), size:CGSize(width:self.frame.size.width, height:self.defaultHeaderHeight));
             self.textLabel.layer.opacity = 0.0;
-            self.transform = CGAffineTransform(translationX: 0, y: -48);
+            var inset:UIEdgeInsets = scrollView.contentInset;
+            inset.top = self.originInsertTop;
+            scrollView.contentInset = inset;
         }) { (finished:Bool) in
             self.refreshLayer.removeAllAnimations();
             self.refreshLayer.reset();
             self.setPullStateText();
-            DispatchQueue.main.asyncAfter(deadline: DispatchTime.now() + 0.3, execute: {
-                self.transform = CGAffineTransform(translationX: 0,  y:0);
-                self.frame = CGRect(origin:CGPoint(x:0,y:0),size:CGSize(width:UIScreen.main.bounds.width,height:0));
-            })
         }
     }
 
     public override func observeValue(forKeyPath keyPath: String?, of object: Any?, change: [NSKeyValueChangeKey : Any]?, context: UnsafeMutableRawPointer?) {
         if keyPath == "contentOffset" {
-            didScroll(scollView: object as! UIScrollView)
+            didScroll(scrollView: object as! UIScrollView)
+        }
+        
+        if "contentInset" == keyPath {
+            let newTop = (change?[NSKeyValueChangeKey.newKey] as AnyObject).uiEdgeInsetsValue.top;
+            if (newTop != nil && originInsertTop == -1){
+                originInsertTop = newTop;
+            }
         }
     }
 }
