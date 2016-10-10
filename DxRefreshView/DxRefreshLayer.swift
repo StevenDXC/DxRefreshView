@@ -9,7 +9,7 @@
 import UIKit
 
 enum LayerState : Int{
-    case PULL_TO_TRANSITION = 0, PULL_TO_ARC,PULL_TO_ROTATE,RELEASED,LOADING
+    case PULL_TO_TRANSITION = 0, PULL_TO_ARC,PULL_TO_ROTATE,LOADING
 }
 
 class DxRefreshLayer: CALayer {
@@ -36,27 +36,21 @@ class DxRefreshLayer: CALayer {
         }
         set {
             _offsetY = newValue;
-            let progress = _offsetY/height;
-            if state == LayerState.PULL_TO_TRANSITION && progress > 0.5 {
-                state = LayerState.PULL_TO_ARC;
-            }
-            
-            if state == LayerState.PULL_TO_ARC && progress <= 0.5 {
+            let rate = _offsetY/self.bounds.height;
+            if rate < 0.5 {
                 state = LayerState.PULL_TO_TRANSITION;
+                angle = 0;
             }
             
-            if state == LayerState.PULL_TO_ARC {
-                angle = (progress-0.5)*2*endAngle;
-                if angle >= endAngle {
-                    state = LayerState.PULL_TO_ROTATE;
-                }
+            if rate >= 0.5 && rate <= 1 {
+                state = LayerState.PULL_TO_ARC;
+                angle = (rate-0.5)*2*endAngle;
             }
             
-            if state == LayerState.PULL_TO_ROTATE {
-                if(progress <= 1){
-                    return;
-                }
-                rotateAngle = (progress-1.0)*180;
+            if rate > 1 {
+                state = LayerState.PULL_TO_ROTATE;
+                angle = endAngle;
+                rotateAngle = (rate-1.0)*180;
             }
             
             setNeedsDisplay();
@@ -88,7 +82,7 @@ class DxRefreshLayer: CALayer {
             drawLineToArcWithContext(ctx: ctx);
         }
         
-        if(state == LayerState.PULL_TO_ROTATE || state == LayerState.RELEASED || state == LayerState.LOADING){
+        if(state == LayerState.PULL_TO_ROTATE || state == LayerState.LOADING){
             drawReleaseStateWithContext(ctx: ctx);
         }
 
@@ -110,7 +104,7 @@ class DxRefreshLayer: CALayer {
             left = (width - lineLength)/2.0;
             top = (height - lineLength)/2.0;
             right = left + lineLength;
-            moveDistance = lineLength/2+top+2;
+            moveDistance = lineLength/2+top;
         }
     }
 
@@ -231,10 +225,7 @@ class DxRefreshLayer: CALayer {
     
     
     public func startLoaingAnimation(){
-        if(state == LayerState.PULL_TO_ROTATE){
-            state = LayerState.RELEASED;
-        }
-        if(state != LayerState.RELEASED || state == LayerState.LOADING){
+        if(state == LayerState.LOADING){
             return;
         }
         state = LayerState.LOADING;

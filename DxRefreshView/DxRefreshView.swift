@@ -12,13 +12,17 @@ typealias ActionHandler = ()->Void;
 
 class DxRefreshView: UIView {
 
-    public var actionHandler:ActionHandler?;
+    internal var actionHandler:ActionHandler?;
     
     private var _color:UIColor = UIColor.darkGray;
     private var refreshLayer:DxRefreshLayer!;
     private var textLabel:UILabel!;
-    private let defaultHeaderHeight:CGFloat = 36.0;
+    private let defaultHeaderHeight:CGFloat = 60.0;
     private var originInsertTop:CGFloat = -1;
+    
+    private var pullText = "下拉刷新数据...";
+    private var releaseText = "释放刷新数据...";
+    private var refreshingText = "正在刷新数据...";
     
     internal var color:UIColor{
         get{
@@ -67,18 +71,25 @@ class DxRefreshView: UIView {
     }
     
     private func setPullStateText(){
-        textLabel.text = "下拉刷新数据...";
+        if textLabel.text != pullText {
+            textLabel.text = pullText;
+        }
     }
     
     private func setRefreshingStateText(){
-        textLabel.text = "正在刷新数据...";
+        textLabel.text = refreshingText;
     }
     
     private func setReleaseStateText(){
-        textLabel.text = "释放刷新数据...";
+        if textLabel.text != releaseText {
+            textLabel.text = releaseText;
+        };
     }
     
     private func startLoadingAniamtion(){
+        if refreshLayer.state == LayerState.LOADING {
+            return;
+        }
         refreshLayer.startLoaingAnimation();
         setRefreshingStateText();
         if actionHandler != nil {
@@ -87,41 +98,36 @@ class DxRefreshView: UIView {
     }
     
     private func didScroll(scrollView:UIScrollView){
+        
         if refreshLayer.state == LayerState.LOADING || originInsertTop == -1 {
             return;
         }
         
-        if scrollView.contentOffset.y >= -(originInsertTop + defaultHeaderHeight) && refreshLayer.state == LayerState.PULL_TO_ROTATE {
+        if -scrollView.contentOffset.y >= originInsertTop + defaultHeaderHeight  && !scrollView.isDragging {
             setScrollViewContentInsetForLoading(scrollView:scrollView);
             startLoadingAniamtion();
             return;
         }
         
-        if scrollView.contentOffset.y < -scrollView.contentInset.top {
-            refreshLayer.offsetY = -scrollView.contentOffset.y - originInsertTop;
-            var progress:CGFloat = (-scrollView.contentOffset.y - scrollView.contentInset.top)/defaultHeaderHeight;
-            if self.frame.height < defaultHeaderHeight {
-                let height:CGFloat = -scrollView.contentOffset.y - originInsertTop;
-                self.frame = CGRect(origin:CGPoint(x:0,y:-height),size: CGSize(width:UIScreen.main.bounds.width, height:-scrollView.contentOffset.y-scrollView.contentInset.top));
-                textLabel.layer.opacity = Float(progress);
-            }
-            
-            if progress > 1 {
-                progress = 1;
-                textLabel.layer.opacity = 1;
-                self.frame = CGRect(origin:CGPoint(x:0,y:0),size: CGSize(width:UIScreen.main.bounds.width, height:defaultHeaderHeight));
+        if scrollView.isDragging {
+            var contentOffsetY = -scrollView.contentOffset.y - originInsertTop;
+            refreshLayer.offsetY = contentOffsetY;
+            if contentOffsetY < defaultHeaderHeight {
+                setPullStateText();
+            }else{
                 setReleaseStateText();
             }
-            refreshLayer.offsetY = -scrollView.contentOffset.y-scrollView.contentInset.top;
-            return;
-        }
-        
-    
-        if scrollView.contentOffset.y == -scrollView.contentInset.top {
-            startLoadingAniamtion();
+            if contentOffsetY > defaultHeaderHeight {
+                contentOffsetY = defaultHeaderHeight;
+            }
+            self.frame = CGRect(origin:CGPoint(x:0,y:-contentOffsetY),size: CGSize(width:UIScreen.main.bounds.width, height:-scrollView.contentOffset.y-scrollView.contentInset.top));
+            textLabel.frame = CGRect(origin:CGPoint(x:textLabel.frame.origin.x, y:contentOffsetY/2-7), size: CGSize(width:textLabel.frame.size.width, height:textLabel.frame.size.height));
+            refreshLayer.frame = CGRect(origin:CGPoint(x:refreshLayer.frame.origin.x, y:contentOffsetY/2-defaultHeaderHeight/2),size: CGSize(width:refreshLayer.frame.size.width,height:refreshLayer.frame.size.height));
+            textLabel.layer.opacity = Float(contentOffsetY/defaultHeaderHeight);
         }
     }
-    
+
+
     private func setScrollViewContentInsetForLoading(scrollView:UIScrollView) {
         var currentInsets:UIEdgeInsets = scrollView.contentInset;
         currentInsets.top = originInsertTop + defaultHeaderHeight;
@@ -168,8 +174,8 @@ class DxRefreshView: UIView {
         }
         
         if "contentInset" == keyPath {
-            let newTop = (change?[NSKeyValueChangeKey.newKey] as AnyObject).uiEdgeInsetsValue.top;
-            if (newTop != nil && originInsertTop == -1){
+            let newTop = (change?[NSKeyValueChangeKey.newKey] as! NSValue).uiEdgeInsetsValue.top;
+            if (originInsertTop == -1){
                 originInsertTop = newTop;
             }
         }

@@ -12,7 +12,6 @@ public extension UIScrollView {
     
     private struct dx_associatedKeys {
         static var refreshHeader = "refreshHeader"
-        static var observer = "observer"
     }
     
     internal var refreshHeader: DxRefreshView? {
@@ -25,35 +24,16 @@ public extension UIScrollView {
         }
     }
     
-    private var observer: NSObject? {
-        get {
-            return objc_getAssociatedObject(self, &dx_associatedKeys.observer) as? NSObject;
-        }
-        
-        set {
-            objc_setAssociatedObject(self, &dx_associatedKeys.observer, newValue, objc_AssociationPolicy.OBJC_ASSOCIATION_RETAIN_NONATOMIC)
-        }
-    }
-    
-    public func addRefreshHeader(color:UIColor,action:(()->Void)){
-        let refreshHeader:DxRefreshView = DxRefreshView();
-        refreshHeader.color = color;
-        refreshHeader.actionHandler = action;
+    internal func setRefreshHeader(refreshHeader:DxRefreshView){
         self.insertSubview(refreshHeader, at: 0);
         self.refreshHeader = refreshHeader;
         self.addObserver(refreshHeader, forKeyPath: "contentOffset", options: NSKeyValueObservingOptions.new, context: nil);
+        self.addObserver(refreshHeader, forKeyPath: "contentInset", options: NSKeyValueObservingOptions.new,context: nil);
     }
-    
-//    public func beginRefreshing(){
-//        self.refreshHeader?.beginRefreshing();
-//    }
-//    
-//    public func endRefreshing(){
-//        self.refreshHeader?.endRefreshing();
-//    }
     
     public func removeScrollObserver(){
         self.removeObserver(self.refreshHeader!, forKeyPath:"contentOffset");
+        self.removeObserver(self.refreshHeader!, forKeyPath: "contentInset");
     }
 
 }

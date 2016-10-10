@@ -8,38 +8,57 @@
 
 import UIKit
 
-class ViewController: UIViewController {
+class ViewController: UIViewController,UITableViewDataSource{
 
-    private var scrollView:UIScrollView!;
+    private var tableView:UITableView!;
+    private var dataSource:NSMutableArray = ["1","2","3"];
     
     override func viewDidLoad() {
         super.viewDidLoad()
         self.view.backgroundColor = UIColor.white;
-        scrollView = UIScrollView();
-        scrollView.frame = self.view.bounds;
-        scrollView.addRefreshHeader(color: UIColor.blue) { 
-            print("refreshing...");
-            DispatchQueue.main.asyncAfter(deadline: DispatchTime.now() + 3.0, execute: {
-                self.scrollView.refreshHeader?.endRefreshing();
-            })
+        
+        tableView = UITableView();
+        tableView.frame = self.view.bounds;
+        tableView.dataSource = self;
+        self.view.addSubview(tableView);
 
+        
+        let refreshHeader:DxRefreshView = DxRefreshView();
+        refreshHeader.color = UIColor.blue;
+        refreshHeader.actionHandler = {
+            DispatchQueue.main.asyncAfter(deadline: DispatchTime.now() + 3.0, execute: {
+                self.dataSource.add(String(self.dataSource.count+1));
+                self.tableView.reloadData();
+                self.tableView.refreshHeader?.endRefreshing();
+            })
         };
-        scrollView.contentSize = CGSize(width:self.view.bounds.width,height:1000);
-        self.view.addSubview(scrollView);
-        self.scrollView.refreshHeader?.beginRefreshing();
+        tableView.setRefreshHeader(refreshHeader: refreshHeader);
+        tableView.refreshHeader?.beginRefreshing();
     }
     
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated);
-        scrollView.removeScrollObserver();
+        tableView.removeScrollObserver();
     }
     
 
     override func didReceiveMemoryWarning() {
         super.didReceiveMemoryWarning()
-        // Dispose of any resources that can be recreated.
     }
 
+    
+    func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
+        return dataSource.count;
+    }
+    
+    func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+        var cell = tableView.dequeueReusableCell(withIdentifier: "cell");
+        if cell == nil{
+            cell = UITableViewCell(style:UITableViewCellStyle.default,reuseIdentifier:"cell");
+        }
+        cell?.textLabel?.text = dataSource.object(at: indexPath.row) as? String;
+        return cell!;
+    }
 
 }
 
