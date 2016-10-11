@@ -36,16 +36,15 @@ class ViewController: UIViewController,UITableViewDataSource{
         tableView.refreshHeader?.beginRefreshing();
     }
     
-    override func viewWillDisappear(_ animated: Bool) {
-        super.viewWillDisappear(animated);
-        tableView.removeScrollObserver();
-    }
-    
-
     override func didReceiveMemoryWarning() {
         super.didReceiveMemoryWarning()
     }
 
+    
+    deinit {
+        tableView.removeScrollObserver();
+    }
+    
     
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         return dataSource.count;
