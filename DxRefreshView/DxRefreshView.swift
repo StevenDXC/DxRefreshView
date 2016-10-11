@@ -103,7 +103,7 @@ class DxRefreshView: UIView {
             return;
         }
         
-        if -scrollView.contentOffset.y >= originInsertTop + defaultHeaderHeight  && !scrollView.isDragging {
+        if -scrollView.contentOffset.y >= originInsertTop + defaultHeaderHeight && !scrollView.isDragging {
             setScrollViewContentInsetForLoading(scrollView:scrollView);
             startLoadingAniamtion();
             return;

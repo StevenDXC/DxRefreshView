@@ -85,7 +85,7 @@ class DxRefreshLayer: CALayer {
         if(state == LayerState.PULL_TO_ROTATE || state == LayerState.LOADING){
             drawReleaseStateWithContext(ctx: ctx);
         }
-
+        
         ctx.drawPath(using: CGPathDrawingMode.stroke)
         ctx.restoreGState()
         objc_sync_exit(self)
