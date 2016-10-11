@@ -180,4 +180,9 @@ class DxRefreshView: UIView {
             }
         }
     }
+    
+    deinit {
+        self.superview?.removeObserver(self,forKeyPath:"contentOffset");
+        self.superview?.removeObserver(self,forKeyPath:"contentInset");
+    }
 }

@@ -29,11 +29,5 @@ public extension UIScrollView {
         self.refreshHeader = refreshHeader;
         self.addObserver(refreshHeader, forKeyPath: "contentOffset", options: NSKeyValueObservingOptions.new, context: nil);
         self.addObserver(refreshHeader, forKeyPath: "contentInset", options: NSKeyValueObservingOptions.new,context: nil);
-    }
-    
-    public func removeScrollObserver(){
-        self.removeObserver(self.refreshHeader!, forKeyPath:"contentOffset");
-        self.removeObserver(self.refreshHeader!, forKeyPath: "contentInset");
-    }
-
+    }    
 }

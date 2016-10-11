@@ -39,12 +39,6 @@ class ViewController: UIViewController,UITableViewDataSource{
     override func didReceiveMemoryWarning() {
         super.didReceiveMemoryWarning()
     }
-
-    
-    deinit {
-        tableView.removeScrollObserver();
-    }
-    
     
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         return dataSource.count;
