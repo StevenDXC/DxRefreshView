@@ -31,11 +31,6 @@ scrollView.endRefreshing();
 scrollView.beginRefreshing();
 ```
 
-应用或界面退出时，移除observer:
-
-```Swift
-scrollView.removeScrollObserver();
-```
 
 [#Objective-C版本](https://github.com/StevenDXC/DxRefreshView_OC)
 ---
